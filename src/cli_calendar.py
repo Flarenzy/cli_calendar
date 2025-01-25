@@ -69,14 +69,14 @@ class CliCalender():
         cur = con.cursor()
         day_beging = self._date.strftime("%Y-%m-%d") + " 00:00:00"
         day_end = self._date.strftime("%Y-%m-%d") + " 23:59:00"
-        i = 1
-        for task in cur.execute(f"SELECT task from {DB_TABLE} WHERE date > ? "
-                                "AND date < ? ORDER BY date ASC",
-                                (day_beging, day_end)):
+        for date, task in cur.execute(f"SELECT date, task from {DB_TABLE} "
+                                      "WHERE date > ? "
+                                      "AND date < ? ORDER BY date ASC",
+                                      (day_beging, day_end)):
             logger.info("We've entered the loop.")
-            win.addstr(f"\n{four_spaces}Task {i}: {task[0]}",
+            hour = datetime.strptime(date, "%Y-%m-%d %H:%M:%S").time().strftime("%H:%M")
+            win.addstr(f"\n{four_spaces}{hour}: {task}",
                        curses.color_pair(3))
-            i += 1
         cur.close()
         con.close()
 
