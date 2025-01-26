@@ -1,5 +1,6 @@
 # CLI Calender
-This is a fun project I am doing to learn a bit about the curses library, play around with sqlite3 and see how hard it is to actually make something. When running any of the commands an curses window is opened and can be exited with either `CTRL + C` or `CTRL + Z`. Moving around in the calender is done with the standard ARROW UP, DOWN, LEFT and RIGHT keys. Moving to an new date the saved tasks for that date  will be displayed on the right side of the window.
+This is a fun project I am doing to learn a bit about the curses library, play around with sqlite3 and see how hard it is to actually make something. When running any of the commands an curses window is opened and can be exited with either `CTRL + C` or `CTRL + Z`. Moving around in the calender is done with the standard ARROW UP, DOWN, LEFT and RIGHT keys. Going from the current to text mounth is done by pressing `CTRL + N` and moving to the previous month is done by pressing `CTRL + P`. 
+Moving to an new date the saved tasks for that date  will be displayed on the right side of the window.
 
 ## Warning!
 This is very much an work in progress so things might break!
@@ -36,6 +37,17 @@ To add an task to use the following syntax `cli_calender task add --date "2025-0
 To delete an task from the calende simply change add to delete and remove the description
 `cli_calender task delete --date "2025-01-17 12:00"`
 
+## Congiguration
+Customization can be done for a few things using the config subcomand and appropriate flag:
+- bg-color -- change the backroung color of the calender and tasks.
+- cursor-color -- change the color of the cursor
+- task-title -- change the color of the `Tasks:` title
+- task-color -- change the color of the tasks text.
+- calendar-color -- change the color of the calender text.
+
+There are 8 colors avaiable: black, red, green, blue, yellow, cyan, magenta and white.
+
+![example_4](./examples/cli_calender_example_4.png)
 
 ## TODO
 1. Allow changing of the default date.
