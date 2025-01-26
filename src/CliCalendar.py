@@ -73,8 +73,9 @@ class CliCalender():
                                       "WHERE date > ? "
                                       "AND date < ? ORDER BY date ASC",
                                       (day_beging, day_end)):
-            logger.info("We've entered the loop.")
-            hour = datetime.strptime(date, "%Y-%m-%d %H:%M:%S").time().strftime("%H:%M")
+            hour = datetime.strptime(date, "%Y-%m-%d %H:%M:%S").time()\
+                .strftime("%H:%M")
+            logger.debug(f"Printing task: {task} to side window. Hour: {hour}")
             win.addstr(f"\n{four_spaces}{hour}: {task}",
                        curses.color_pair(3))
         cur.close()
@@ -243,6 +244,10 @@ class CliCalender():
             self._delete_task(args.date)
 
     def handle_args(self, args: Namespace) -> None:
+        if args.year:
+            mon = self._date.month
+            self._date = self._date.replace(year=args.year)
+            self._month_calender = self._gen_current_month(args.year, mon)
         if args.month:
             mon = self._date.month
             year = self._date.year

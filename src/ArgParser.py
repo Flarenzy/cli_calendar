@@ -22,8 +22,8 @@ def get_args() -> Namespace:
     parser = ArgumentParser(description=DESCRIPTION)
     cur_date = datetime.now()
     cur_month = cur_date.strftime("%b")
-    cur_day = cur_date.strftime("%-d")
-    cur_year = cur_date.strftime("%Y")
+    cur_day = int(cur_date.strftime("%-d"))
+    cur_year = int(cur_date.strftime("%Y"))
     parser.add_argument("--year",
                         action="store",
                         default=cur_year,

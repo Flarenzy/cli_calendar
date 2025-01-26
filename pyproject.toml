@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools >= 75.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cli_calender"
+version = "1.0"
+dependencies = []
+description = "A fun little cli calender."
+readme = "README.md"
+requires-python = ">=3.12"
+keywords = ["cli", "calender"]
+authors = [
+  {name = "Flarenzy"},
+]
+maintainers = [
+  {name = "Flarenzy"},
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Anyone",
+  "Topic :: CLI tools",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+
+[project.scripts]
+cli_calender="main:main_entry"

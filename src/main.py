@@ -5,7 +5,7 @@ from argparse import Namespace
 from _curses import window
 
 from ArgParser import get_args
-from cli_calendar import CliCalender
+from CliCalendar import CliCalender
 
 _CUR_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -38,6 +38,11 @@ def main(stdscr: window, args: Namespace) -> int:
         cal.move(stdscr)
 
 
-if __name__ == "__main__":
+def main_entry() -> None:
     args = get_args()
     curses.wrapper(main, args)
+    return 0
+
+
+if __name__ == "__main__":
+    main_entry()

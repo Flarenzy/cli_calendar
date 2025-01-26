@@ -1,0 +1,4 @@
+classify-imports==4.2.0
+-e git+https://github.com/Flarenzy/cli_calendar@c4a8cfea65028920d30ce92d55c6c23976a00fb4#egg=cli_calender
+reorder_python_imports==3.14.0
+setuptools==75.8.0
