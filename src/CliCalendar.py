@@ -1,18 +1,19 @@
-import curses
 import calendar
+import curses
+import logging
 import os
-import sys
 import signal
 import sqlite3
-import logging
+import sys
+from _curses import window
 from argparse import Namespace
 from datetime import datetime
-from _curses import window
 from typing import Any
 from typing import Optional
 
 from constants import DB_NAME
 from constants import DB_TABLE
+from dateutil.relativedelta import relativedelta
 
 _CUR_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -41,7 +42,7 @@ nums_to_months = {v: k for k, v in months_to_nums.items()}
 class CliCalender():
 
     def __init__(self):
-        self.pos = (0, 0)  # (y, x) 
+        self.pos = (0, 0)  # (y, x)
         self.state_matrix = None
         self._text_cal = calendar.TextCalendar()
         self._date = datetime.now()
@@ -52,7 +53,7 @@ class CliCalender():
     def _init_db(self) -> None:
         con = sqlite3.connect(DB_NAME)
         cur = con.cursor()
-        cur.execute(f"CREATE TABLE IF NOT EXISTS {DB_TABLE} (" 
+        cur.execute(f"CREATE TABLE IF NOT EXISTS {DB_TABLE} ("
                     " date TEXT UNIQUE NOT NULL, task TEXT NOT NULL)")
         cur.close()
         con.commit()
@@ -82,7 +83,7 @@ class CliCalender():
         con.close()
 
     def draw(self, stdscr: window, day: Optional[str] = None) -> None:
-        if not day:
+        if day is None:
             day = self._date.strftime("%-d")
         else:
             self._date = self._date.replace(day=int(day))
@@ -123,17 +124,23 @@ class CliCalender():
                             max_x // 4,
                             0,
                             max_x // 4)
-
-        # win.addstr(f"\n{four_spaces}Task 1: pick up car", curses.color_pair(3))
         stdscr.refresh()
         self._draw_tasks(win)
         win.refresh()
 
     def _handle_signal(self, signal_number: int, frame: Any) -> None:
-        # clean up any db cons? 
+        # clean up any db cons?
         curses.endwin()
         logger.info(f"Exiting on signal: {signal_number}")
         sys.exit(0)
+
+    def _add_date(self, year: int = 0, month: int = 0, day: int = 0) -> None:
+        self._date = self._date + relativedelta(years=year,
+                                                months=month,
+                                                days=day)
+        self._month_calender = self._gen_current_month(self._date.year,
+                                                       self._date.month)
+        logger.info(f"New date is {self._date}")
 
     def move(self, stdscr: window) -> None:
         temp = self._month_calender.splitlines()
@@ -141,12 +148,11 @@ class CliCalender():
         signal.signal(signal.SIGTSTP, self._handle_signal)
         m = len(temp)
         n = len(temp[2])
-        logger.debug("======================")
         match stdscr.getkey():
             case "KEY_UP":
                 if self.pos[0] - 1 > 1:
                     logger.debug(f"Going from pos {self.pos} to "
-                                f"{self.pos[0]-1}:{self.pos[1]}")
+                                 f"{self.pos[0]-1}:{self.pos[1]}")
                     day = temp[self.pos[0] - 1][self.pos[1]:self.pos[1] + 2]
                     day = day.strip()
                     if not day.isnumeric():
@@ -158,7 +164,7 @@ class CliCalender():
             case "KEY_DOWN":
                 if self.pos[0] + 1 < m:
                     logger.debug(f"Going from pos {self.pos} to "
-                                f"{self.pos[0] + 1}:{self.pos[1]}")
+                                 f"{self.pos[0] + 1}:{self.pos[1]}")
                     day = temp[self.pos[0] + 1][self.pos[1]:self.pos[1] + 2]
                     day = day.strip()
                     if not day.isnumeric():
@@ -182,7 +188,7 @@ class CliCalender():
             case "KEY_RIGHT":
                 if self.pos[1] + 3 < n:
                     logger.debug(f"Going from pos {self.pos} to "
-                                f"{self.pos[0]}:{self.pos[1] + 3}")
+                                 f"{self.pos[0]}:{self.pos[1] + 3}")
                     day = temp[self.pos[0]][self.pos[1] + 3:self.pos[1] + 5]
                     day = day.strip()
                     if not day.isnumeric():
@@ -191,6 +197,14 @@ class CliCalender():
                     logger.debug(f"new day is {day}")
                     self.draw(stdscr, day)
                     logger.debug("Yoou pressed right!")
+            case "\x0e":  # This is the asci value for control + n
+                logger.debug("Pressed the next page button!")
+                self._add_date(month=1)
+                self.draw(stdscr, str(self._date.day))
+            case "\x10":  # This is the asci value for control + p
+                logger.debug("Pressed the prev page button!")
+                self._add_date(month=-1)
+                self.draw(stdscr, str(self._date.day))
 
     def _pad_line(self, stdscr: window, line: str) -> None:
         i = 0

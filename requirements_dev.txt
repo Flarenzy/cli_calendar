@@ -1,4 +1,14 @@
 classify-imports==4.2.0
--e git+https://github.com/Flarenzy/cli_calendar@c4a8cfea65028920d30ce92d55c6c23976a00fb4#egg=cli_calender
+-e git+https://github.com/Flarenzy/cli_calendar@fcd8aeb8af1e30fb507b6dc08a2673373f80e3df#egg=cli_calender
+flake8==7.1.1
+mccabe==0.7.0
+mypy==1.14.1
+mypy-extensions==1.0.0
+pycodestyle==2.12.1
+pyflakes==3.2.0
+python-dateutil==2.9.0.post0
 reorder_python_imports==3.14.0
 setuptools==75.8.0
+six==1.17.0
+types-python-dateutil==2.9.0.20241206
+typing_extensions==4.12.2

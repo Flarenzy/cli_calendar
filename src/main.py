@@ -1,8 +1,8 @@
 import curses
-import os
 import logging
-from argparse import Namespace
+import os
 from _curses import window
+from argparse import Namespace
 
 from ArgParser import get_args
 from CliCalendar import CliCalender
@@ -38,7 +38,7 @@ def main(stdscr: window, args: Namespace) -> int:
         cal.move(stdscr)
 
 
-def main_entry() -> None:
+def main_entry() -> int:
     args = get_args()
     curses.wrapper(main, args)
     return 0
