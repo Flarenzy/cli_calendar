@@ -3,6 +3,7 @@ from argparse import ArgumentParser
 from argparse import Namespace
 from datetime import datetime
 
+from constants import _COLORS
 from constants import _DAYS
 from constants import _MONTHS
 
@@ -44,6 +45,33 @@ def get_args() -> Namespace:
     subparsers = parser.add_subparsers(dest="command")
     task = subparsers.add_parser("task", help="Subcommand for adding "
                                  "and deleting tasks.")
+    config = subparsers.add_parser("config", help="Configure the settings - "
+                                   "colors of the calender.")
+    config.add_argument("--bg-color",
+                        action="store",
+                        help="Change the background color.",
+                        type=str,
+                        choices=_COLORS)
+    config.add_argument("--cursor-color",
+                        action="store",
+                        help="Change the cursors color.",
+                        type=str,
+                        choices=_COLORS)
+    config.add_argument("--task-color",
+                        action="store",
+                        help="Change the task text color.",
+                        type=str,
+                        choices=_COLORS)
+    config.add_argument("--task-title",
+                        action="store",
+                        help="Change the background color.",
+                        type=str,
+                        choices=_COLORS)
+    config.add_argument("--calendar-color",
+                        action="store",
+                        help="Change the background color.",
+                        type=str,
+                        choices=_COLORS)
     task_subpars = task.add_subparsers(dest="task_command")
     add_task = task_subpars.add_parser("add",
                                        help="Add task to calender. "

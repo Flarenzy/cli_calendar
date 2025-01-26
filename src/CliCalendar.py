@@ -7,12 +7,15 @@ import sqlite3
 import sys
 from _curses import window
 from argparse import Namespace
+from collections import ChainMap
 from datetime import datetime
 from typing import Any
 from typing import Optional
 
+from constants import DEFAULT_CONFIG
 from constants import DB_NAME
-from constants import DB_TABLE
+from constants import DB_CONFIG_TABLE
+from constants import DB_TASK_TABLE
 from dateutil.relativedelta import relativedelta
 
 _CUR_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -38,6 +41,17 @@ months_to_nums = {
 
 nums_to_months = {v: k for k, v in months_to_nums.items()}
 
+color_to_curses_color_pair = {
+    "black": 0,
+    "red": 1,
+    "green": 2,
+    "yellow": 3,
+    "blue": 4,
+    "magenta": 5,
+    "cyan": 6,
+    "white": 7
+}
+
 
 class CliCalender():
 
@@ -49,12 +63,56 @@ class CliCalender():
         self._month_calender = self._gen_current_month(self._date.year,
                                                        self._date.month)
         self._init_db()
+        self._config = None
+        self._load_config()
+        curses.start_color()
+        self._init_colors()
+
+    def _load_config(self) -> None:
+        if self._config is not None:
+            return
+        user_config = self._user_config()
+        self._config = ChainMap(user_config, DEFAULT_CONFIG)
+
+    def _user_config(self) -> dict[str, int]:
+        conf: dict[str, int] = {}
+        query = (f"SELECT * FROM {DB_CONFIG_TABLE} "
+                 "WHERE id = 1 "
+                 "AND bg_color IS NOT NULL "
+                 "AND task_color IS NOT NULL "
+                 "AND task_title IS NOT NULL "
+                 "AND calendar_color IS NOT NULL "
+                 "AND cursor_color IS NOT NULL"
+                 )
+        con = sqlite3.connect(DB_NAME)
+        cur = con.cursor()
+        try:
+            res = cur.execute(query).fetchone()
+            if res:
+                columns = ["bg_color", "task_color", "task_title",
+                           "calendar_color", "cursor_color"]
+                conf = {colum: res[i] for i, colum in enumerate(columns)
+                        if res[i] is not None}
+            else:
+                logger.info("No user configuration found in the database.")
+        finally:
+            cur.close()
+            con.close()
+        logger.info(f"Loaded configuration: {conf}")
+        return conf
 
     def _init_db(self) -> None:
         con = sqlite3.connect(DB_NAME)
         cur = con.cursor()
-        cur.execute(f"CREATE TABLE IF NOT EXISTS {DB_TABLE} ("
+        cur.execute(f"CREATE TABLE IF NOT EXISTS {DB_TASK_TABLE} ("
                     " date TEXT UNIQUE NOT NULL, task TEXT NOT NULL)")
+        cur.execute(f"CREATE TABLE IF NOT EXISTS {DB_CONFIG_TABLE} ("
+                    " id INTEGER PRIMARY KEY CHECK (id = 1),"
+                    " bg_color INTEGER,"
+                    " task_color INTEGER,"
+                    " task_title INTEGER,"
+                    " calendar_color INTEGER,"
+                    " cursor_color INTEGER)")
         cur.close()
         con.commit()
         con.close()
@@ -65,22 +123,38 @@ class CliCalender():
     def _draw_tasks(self, win: window) -> None:
         four_spaces = "    "
         win.clear()
-        win.addstr(f"\n\n{four_spaces}Tasks:", curses.color_pair(1))
+        win.addstr(f"\n\n{four_spaces}")
+        win.addstr("Tasks:",
+                   curses.color_pair(self._config["task_title"]))
         con = sqlite3.connect(DB_NAME)
         cur = con.cursor()
         day_beging = self._date.strftime("%Y-%m-%d") + " 00:00:00"
         day_end = self._date.strftime("%Y-%m-%d") + " 23:59:00"
-        for date, task in cur.execute(f"SELECT date, task from {DB_TABLE} "
-                                      "WHERE date > ? "
+        for date, task in cur.execute(f"SELECT date, task from {DB_TASK_TABLE}"
+                                      " WHERE date > ? "
                                       "AND date < ? ORDER BY date ASC",
                                       (day_beging, day_end)):
             hour = datetime.strptime(date, "%Y-%m-%d %H:%M:%S").time()\
                 .strftime("%H:%M")
             logger.debug(f"Printing task: {task} to side window. Hour: {hour}")
-            win.addstr(f"\n{four_spaces}{hour}: {task}",
-                       curses.color_pair(3))
+            win.addstr(f"\n{four_spaces}")
+            win.addstr(f"{hour}: {task}",
+                       curses.color_pair(self._config["task_color"]))
         cur.close()
         con.close()
+
+    def _init_colors(self) -> None:
+        colors = [
+            (curses.COLOR_RED, self._config["bg_color"]),
+            (curses.COLOR_GREEN, self._config["bg_color"]),
+            (curses.COLOR_YELLOW, self._config["bg_color"]),
+            (curses.COLOR_BLUE, self._config["bg_color"]),
+            (curses.COLOR_MAGENTA, self._config["bg_color"]),
+            (curses.COLOR_CYAN, self._config["bg_color"]),
+            (curses.COLOR_WHITE, self._config["bg_color"]),
+        ]
+        for i, (fg, bg) in enumerate(colors, start=1):
+            curses.init_pair(i, fg, bg)
 
     def draw(self, stdscr: window, day: Optional[str] = None) -> None:
         if day is None:
@@ -93,10 +167,19 @@ class CliCalender():
             day = " " + day
         four_spaces = "    "
         found = False
-        for i, line in enumerate(self._month_calender.splitlines()):
+        split = self._month_calender.splitlines()
+        for i, line in enumerate(split):
             logger.debug(f"Entered loop with index {i}")
-            if day not in line or found:
-                stdscr.addstr(f"{four_spaces}{line}\n", curses.color_pair(0))
+            if i == 0:
+                line += "    "
+            if i == len(split) - 1:
+                x = len(split[2]) - len(line)
+                line += " " * x
+            if day not in line or found or i < 2:
+                stdscr.addstr(f"{four_spaces}")
+                stdscr.addstr(f"{line}\n",
+                              curses.color_pair(self._config["calendar_color"])
+                              )
                 continue
             stdscr.addstr(f"{four_spaces}")
             if i == 2:
@@ -110,14 +193,27 @@ class CliCalender():
                     c = " " + c
                 if c == day:
                     if j != 0:
-                        stdscr.addstr(" ")
-                    attrs = curses.color_pair(1) | curses.A_STANDOUT
+                        stdscr.addstr(" ",
+                                      curses.color_pair(self._config["calendar"
+                                                                     "_color"]
+                                                        )
+                                      )
+                    attrs = curses.color_pair(self._config["cursor_color"]) \
+                        | curses.A_STANDOUT
                     stdscr.addstr(f"{c}", attrs)
                     found = True
                     continue
                 if j != 0:
                     c = " " + c
-                stdscr.addstr(f"{c}", curses.color_pair(0))
+                stdscr.addstr(f"{c}",
+                              curses.color_pair(self._config["calendar_color"]
+                                                )
+                              )
+            if i == len(split) - 1:
+                logger.info("Usli smo aleluja")
+                stdscr.addstr(" " * (len(split[2]) - len(split[6])),
+                              curses.color_pair(self._config["calendar_color"])
+                              )
             stdscr.addstr("\n")
         max_y, max_x = stdscr.getmaxyx()
         win = curses.newwin(max_y,
@@ -213,7 +309,8 @@ class CliCalender():
                 break
             i += 1
         logger.debug({f"Need to pad {i} times"})
-        stdscr.addstr(" " * (i - 1))
+        stdscr.addstr(" " * (i - 1),
+                      curses.color_pair(self._config["calendar_color"]))
 
     def _add_task(self, date: str, task_desc: str) -> None:
         try:
@@ -224,7 +321,7 @@ class CliCalender():
         try:
             con = sqlite3.connect(DB_NAME)
             cur = con.cursor()
-            cur.execute(f"INSERT INTO {DB_TABLE} values(?, ?)",
+            cur.execute(f"INSERT INTO {DB_TASK_TABLE} values(?, ?)",
                         (date + ":00",
                         task_desc))
             logger.info(f"Added task '{task_desc}', to date {date}.")
@@ -242,7 +339,8 @@ class CliCalender():
             logger.error(f"Got error deleting date: {e}")
         con = sqlite3.connect(DB_NAME)
         cur = con.cursor()
-        cur.execute(f"DELETE FROM {DB_TABLE} WHERE date == ?", (date + ":00",))
+        cur.execute(f"DELETE FROM {DB_TASK_TABLE} WHERE date == ?",
+                    (date + ":00",))
         if cur.rowcount == 0:
             logger.info(f"No task found for date {date} to delete.")
         else:
@@ -256,6 +354,42 @@ class CliCalender():
             self._add_task(args.date, args.description)
         elif args.task_command == "delete":
             self._delete_task(args.date)
+
+    def _save_user_config(self, args: Namespace) -> None:
+        con = sqlite3.connect(DB_NAME)
+        cur = con.cursor()
+        updates = []
+        values = []
+        if args.bg_color:
+            updates.append("bg_color = ?")
+            values.append(color_to_curses_color_pair[args.bg_color])
+        if args.cursor_color:
+            updates.append("cursor_color = ?")
+            values.append(color_to_curses_color_pair[args.cursor_color])
+        if args.task_color:
+            updates.append("task_color = ?")
+            values.append(color_to_curses_color_pair[args.task_color])
+        if args.task_title:
+            updates.append("task_title = ?")
+            values.append(color_to_curses_color_pair[args.task_title])
+        if args.calendar_color:
+            updates.append("calendar_color = ?")
+            values.append(color_to_curses_color_pair[args.calendar_color])
+
+        try:
+            cur.execute(f"INSERT OR IGNORE INTO {DB_CONFIG_TABLE} "
+                        "(id) VALUES (1);")
+            if updates:
+                query = f"""
+                UPDATE {DB_CONFIG_TABLE}
+                SET {', '.join(updates)}
+                WHERE id = 1;
+                """
+                cur.execute(query, values)
+            con.commit()
+        finally:
+            cur.close()
+            con.close()
 
     def handle_args(self, args: Namespace) -> None:
         if args.year:
@@ -282,4 +416,8 @@ class CliCalender():
             if args.command == "task":
                 self._handle_task(args)
                 curses.endwin()
-                SystemExit(0)
+                raise SystemExit(0)
+            elif args.command == "config":
+                self._save_user_config(args)
+                curses.endwin()
+                raise SystemExit(0)

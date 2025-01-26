@@ -38,8 +38,5 @@ To delete an task from the calende simply change add to delete and remove the de
 
 
 ## TODO
-1. Bugfix - The month title sometimes moves around.
-2. Make the colors configurable. 
-3. Allow changing of the default date.
-4. Moving to the next month while without having to exit.
-5. Tests! Lots of tests...
+1. Allow changing of the default date.
+2. Tests! Lots of tests...
