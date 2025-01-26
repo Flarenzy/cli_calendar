@@ -1,5 +1,5 @@
 # CLI Calender
-This is a fun project I am doing to learn a bit about the curses library, play around with sqlite3 and see how hard it is to actually make something. When running any of the commands an curses window is opened and you can exit it with either `CTRL + C` or `CTRL + Z`. You can move around in the calender with the standard ARROW UP, DOWN, LEFT and RIGHT keys. When you move to an new date the saved tasks for that date  will be displayed on the right side of the window.
+This is a fun project I am doing to learn a bit about the curses library, play around with sqlite3 and see how hard it is to actually make something. When running any of the commands an curses window is opened and can be exited with either `CTRL + C` or `CTRL + Z`. Moving around in the calender is done with the standard ARROW UP, DOWN, LEFT and RIGHT keys. Moving to an new date the saved tasks for that date  will be displayed on the right side of the window.
 
 ## Warning!
 This is very much an work in progress so things might break!
@@ -10,8 +10,8 @@ Then run `pip install -e .` in the root dir of the project and cli_calender will
 
 ## Examples
 To view the current month just use `cli_calender` and an new terminal window will open with the current month.
-As you can see on the left side is the current month and on the right side are the tasks scheduled for that day.
-You can use the --year, --month and --day flags together or one at at time to specify the desired date on which the calender view will open.
+On the left side is the current month and on the right side are the tasks scheduled for that day.
+The flags --year, --month and --day together or one at at time can be used to specify the desired date on which the calender view will open.
 The default values for each are taken from the current date. Note that the date is currently just taken from the OS-es date.
 
 `cli_calender`

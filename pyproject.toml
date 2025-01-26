@@ -28,3 +28,6 @@ classifiers = [
 
 [project.scripts]
 cli_calender="main:main_entry"
+
+[project.urls]
+Changelog = "https://github.com/Flarenzy/cli_calendar/CHANGELOG.md"
