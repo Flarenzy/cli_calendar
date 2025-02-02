@@ -37,7 +37,7 @@ To add an task to use the following syntax `cli_calender task add --date "2025-0
 To delete an task from the calende simply change add to delete and remove the description
 `cli_calender task delete --date "2025-01-17 12:00"`
 
-## Congiguration
+## Configuration
 Customization can be done for a few things using the config subcomand and appropriate flag:
 - bg-color -- change the backroung color of the calender and tasks.
 - cursor-color -- change the color of the cursor
