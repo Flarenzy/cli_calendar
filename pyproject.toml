@@ -5,7 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cli_calender"
 version = "1.1.0"
-dependencies = []
+dependencies = [
+  "python-dateutil>=2.9.0",
+]
 description = "A fun little cli calender."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -31,3 +33,13 @@ cli_calender="main:main_entry"
 
 [project.urls]
 Changelog = "https://github.com/Flarenzy/cli_calendar/CHANGELOG.md"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.4.0",
+  "pytest-cov>=6.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

@@ -18,8 +18,9 @@ You can add or delete desk with the task subcomand.
 """
 
 
-def get_args() -> Namespace:
-    argv = sys.argv[1:]
+def get_args(argv: list[str] | None = None) -> Namespace:
+    if argv is None:
+        argv = sys.argv[1:]
     parser = ArgumentParser(description=DESCRIPTION)
     cur_date = datetime.now()
     cur_month = cur_date.strftime("%b")
