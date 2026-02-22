@@ -14,9 +14,8 @@ from typing import Optional
 
 from constants import DEFAULT_CONFIG
 from constants import DB_NAME
-from constants import DB_CONFIG_TABLE
-from constants import DB_TASK_TABLE
 from dateutil.relativedelta import relativedelta
+from TaskRepository import TaskRepository
 
 _CUR_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -62,6 +61,7 @@ class CliCalender():
         self._date = datetime.now()
         self._month_calender = self._gen_current_month(self._date.year,
                                                        self._date.month)
+        self._repo = TaskRepository(DB_NAME)
         self._init_db()
         self._config = None
         self._load_config()
@@ -75,47 +75,14 @@ class CliCalender():
         self._config = ChainMap(user_config, DEFAULT_CONFIG)
 
     def _user_config(self) -> dict[str, int]:
-        conf: dict[str, int] = {}
-        query = (f"SELECT * FROM {DB_CONFIG_TABLE} "
-                 "WHERE id = 1 "
-                 "AND bg_color IS NOT NULL "
-                 "AND task_color IS NOT NULL "
-                 "AND task_title IS NOT NULL "
-                 "AND calendar_color IS NOT NULL "
-                 "AND cursor_color IS NOT NULL"
-                 )
-        con = sqlite3.connect(DB_NAME)
-        cur = con.cursor()
-        try:
-            res = cur.execute(query).fetchone()
-            if res:
-                columns = ["bg_color", "task_color", "task_title",
-                           "calendar_color", "cursor_color"]
-                conf = {colum: res[i] for i, colum in enumerate(columns)
-                        if res[i] is not None}
-            else:
-                logger.info("No user configuration found in the database.")
-        finally:
-            cur.close()
-            con.close()
+        conf = self._repo.load_config()
+        if not conf:
+            logger.info("No user configuration found in the database.")
         logger.info(f"Loaded configuration: {conf}")
         return conf
 
     def _init_db(self) -> None:
-        con = sqlite3.connect(DB_NAME)
-        cur = con.cursor()
-        cur.execute(f"CREATE TABLE IF NOT EXISTS {DB_TASK_TABLE} ("
-                    " date TEXT UNIQUE NOT NULL, task TEXT NOT NULL)")
-        cur.execute(f"CREATE TABLE IF NOT EXISTS {DB_CONFIG_TABLE} ("
-                    " id INTEGER PRIMARY KEY CHECK (id = 1),"
-                    " bg_color INTEGER,"
-                    " task_color INTEGER,"
-                    " task_title INTEGER,"
-                    " calendar_color INTEGER,"
-                    " cursor_color INTEGER)")
-        cur.close()
-        con.commit()
-        con.close()
+        self._repo.init_db()
 
     def _gen_current_month(self, year: int = 0, month: int = 0) -> str:
         return self._text_cal.formatmonth(year, month)
@@ -126,22 +93,13 @@ class CliCalender():
         win.addstr(f"\n\n{four_spaces}")
         win.addstr("Tasks:",
                    curses.color_pair(self._config["task_title"]))
-        con = sqlite3.connect(DB_NAME)
-        cur = con.cursor()
-        day_beging = self._date.strftime("%Y-%m-%d") + " 00:00:00"
-        day_end = self._date.strftime("%Y-%m-%d") + " 23:59:00"
-        for date, task in cur.execute(f"SELECT date, task from {DB_TASK_TABLE}"
-                                      " WHERE date > ? "
-                                      "AND date < ? ORDER BY date ASC",
-                                      (day_beging, day_end)):
+        for date, task in self._repo.tasks_for_day(self._date):
             hour = datetime.strptime(date, "%Y-%m-%d %H:%M:%S").time()\
                 .strftime("%H:%M")
             logger.debug(f"Printing task: {task} to side window. Hour: {hour}")
             win.addstr(f"\n{four_spaces}")
             win.addstr(f"{hour}: {task}",
                        curses.color_pair(self._config["task_color"]))
-        cur.close()
-        con.close()
 
     def _init_colors(self) -> None:
         colors = [
@@ -319,35 +277,21 @@ class CliCalender():
             logger.error(f"Got error parsing date to add: {e}")
             raise SystemExit(2)
         try:
-            con = sqlite3.connect(DB_NAME)
-            cur = con.cursor()
-            cur.execute(f"INSERT INTO {DB_TASK_TABLE} values(?, ?)",
-                        (date + ":00",
-                        task_desc))
+            self._repo.add_task(date + ":00", task_desc)
             logger.info(f"Added task '{task_desc}', to date {date}.")
         except sqlite3.IntegrityError as e:
             logger.error(f"Task for date {date} already exists: {e}")
-        finally:
-            cur.close()
-            con.commit()
-            con.close()
 
     def _delete_task(self, date: str) -> None:
         try:
             datetime.strptime(date, "%Y-%m-%d %H:%M")
         except ValueError as e:
             logger.error(f"Got error deleting date: {e}")
-        con = sqlite3.connect(DB_NAME)
-        cur = con.cursor()
-        cur.execute(f"DELETE FROM {DB_TASK_TABLE} WHERE date == ?",
-                    (date + ":00",))
-        if cur.rowcount == 0:
+        rowcount = self._repo.delete_task(date + ":00")
+        if rowcount == 0:
             logger.info(f"No task found for date {date} to delete.")
         else:
             logger.info(f"Task for date {date} deleted.")
-        cur.close()
-        con.commit()
-        con.close()
 
     def _handle_task(self, args: Namespace) -> None:
         if args.task_command == "add":
@@ -356,8 +300,6 @@ class CliCalender():
             self._delete_task(args.date)
 
     def _save_user_config(self, args: Namespace) -> None:
-        con = sqlite3.connect(DB_NAME)
-        cur = con.cursor()
         updates = []
         values = []
         if args.bg_color:
@@ -375,21 +317,14 @@ class CliCalender():
         if args.calendar_color:
             updates.append("calendar_color = ?")
             values.append(color_to_curses_color_pair[args.calendar_color])
-
-        try:
-            cur.execute(f"INSERT OR IGNORE INTO {DB_CONFIG_TABLE} "
-                        "(id) VALUES (1);")
-            if updates:
-                query = f"""
-                UPDATE {DB_CONFIG_TABLE}
-                SET {', '.join(updates)}
-                WHERE id = 1;
-                """
-                cur.execute(query, values)
-            con.commit()
-        finally:
-            cur.close()
-            con.close()
+        if not updates:
+            self._repo.save_config({})
+            return
+        parsed_updates = {}
+        for update, value in zip(updates, values):
+            key = update.split(" = ")[0]
+            parsed_updates[key] = value
+        self._repo.save_config(parsed_updates)
 
     def handle_args(self, args: Namespace) -> None:
         if args.year:
