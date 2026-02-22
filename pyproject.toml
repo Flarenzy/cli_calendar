@@ -43,3 +43,10 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+
+[tool.coverage.json]
+pretty_print = true

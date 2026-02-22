@@ -10,6 +10,7 @@ from argparse import Namespace
 from collections import ChainMap
 from datetime import datetime
 from typing import Any
+from typing import Callable
 from typing import Optional
 
 from constants import DEFAULT_CONFIG
@@ -54,18 +55,22 @@ color_to_curses_color_pair = {
 
 class CliCalender():
 
-    def __init__(self):
+    def __init__(self,
+                 db_path: str = DB_NAME,
+                 now_fn: Callable[[], datetime] = datetime.now,
+                 curses_api: Any = curses):
         self.pos = (0, 0)  # (y, x)
         self.state_matrix = None
+        self._curses = curses_api
         self._text_cal = calendar.TextCalendar()
-        self._date = datetime.now()
+        self._date = now_fn()
         self._month_calender = self._gen_current_month(self._date.year,
                                                        self._date.month)
-        self._repo = TaskRepository(DB_NAME)
+        self._repo = TaskRepository(db_path)
         self._init_db()
         self._config = None
         self._load_config()
-        curses.start_color()
+        self._curses.start_color()
         self._init_colors()
 
     def _load_config(self) -> None:
@@ -92,27 +97,27 @@ class CliCalender():
         win.clear()
         win.addstr(f"\n\n{four_spaces}")
         win.addstr("Tasks:",
-                   curses.color_pair(self._config["task_title"]))
+                   self._curses.color_pair(self._config["task_title"]))
         for date, task in self._repo.tasks_for_day(self._date):
             hour = datetime.strptime(date, "%Y-%m-%d %H:%M:%S").time()\
                 .strftime("%H:%M")
             logger.debug(f"Printing task: {task} to side window. Hour: {hour}")
             win.addstr(f"\n{four_spaces}")
             win.addstr(f"{hour}: {task}",
-                       curses.color_pair(self._config["task_color"]))
+                       self._curses.color_pair(self._config["task_color"]))
 
     def _init_colors(self) -> None:
         colors = [
-            (curses.COLOR_RED, self._config["bg_color"]),
-            (curses.COLOR_GREEN, self._config["bg_color"]),
-            (curses.COLOR_YELLOW, self._config["bg_color"]),
-            (curses.COLOR_BLUE, self._config["bg_color"]),
-            (curses.COLOR_MAGENTA, self._config["bg_color"]),
-            (curses.COLOR_CYAN, self._config["bg_color"]),
-            (curses.COLOR_WHITE, self._config["bg_color"]),
+            (self._curses.COLOR_RED, self._config["bg_color"]),
+            (self._curses.COLOR_GREEN, self._config["bg_color"]),
+            (self._curses.COLOR_YELLOW, self._config["bg_color"]),
+            (self._curses.COLOR_BLUE, self._config["bg_color"]),
+            (self._curses.COLOR_MAGENTA, self._config["bg_color"]),
+            (self._curses.COLOR_CYAN, self._config["bg_color"]),
+            (self._curses.COLOR_WHITE, self._config["bg_color"]),
         ]
         for i, (fg, bg) in enumerate(colors, start=1):
-            curses.init_pair(i, fg, bg)
+            self._curses.init_pair(i, fg, bg)
 
     def draw(self, stdscr: window, day: Optional[str] = None) -> None:
         if day is None:
@@ -136,7 +141,7 @@ class CliCalender():
             if day not in line or found or i < 2:
                 stdscr.addstr(f"{four_spaces}")
                 stdscr.addstr(f"{line}\n",
-                              curses.color_pair(self._config["calendar_color"])
+                              self._curses.color_pair(self._config["calendar_color"])
                               )
                 continue
             stdscr.addstr(f"{four_spaces}")
@@ -152,29 +157,29 @@ class CliCalender():
                 if c == day:
                     if j != 0:
                         stdscr.addstr(" ",
-                                      curses.color_pair(self._config["calendar"
+                                      self._curses.color_pair(self._config["calendar"
                                                                      "_color"]
                                                         )
                                       )
-                    attrs = curses.color_pair(self._config["cursor_color"]) \
-                        | curses.A_STANDOUT
+                    attrs = self._curses.color_pair(self._config["cursor_color"]) \
+                        | self._curses.A_STANDOUT
                     stdscr.addstr(f"{c}", attrs)
                     found = True
                     continue
                 if j != 0:
                     c = " " + c
                 stdscr.addstr(f"{c}",
-                              curses.color_pair(self._config["calendar_color"]
+                              self._curses.color_pair(self._config["calendar_color"]
                                                 )
                               )
             if i == len(split) - 1:
                 logger.info("Usli smo aleluja")
                 stdscr.addstr(" " * (len(split[2]) - len(split[6])),
-                              curses.color_pair(self._config["calendar_color"])
+                              self._curses.color_pair(self._config["calendar_color"])
                               )
             stdscr.addstr("\n")
         max_y, max_x = stdscr.getmaxyx()
-        win = curses.newwin(max_y,
+        win = self._curses.newwin(max_y,
                             max_x // 4,
                             0,
                             max_x // 4)
@@ -184,7 +189,7 @@ class CliCalender():
 
     def _handle_signal(self, signal_number: int, frame: Any) -> None:
         # clean up any db cons?
-        curses.endwin()
+        self._curses.endwin()
         logger.info(f"Exiting on signal: {signal_number}")
         sys.exit(0)
 
@@ -268,7 +273,7 @@ class CliCalender():
             i += 1
         logger.debug({f"Need to pad {i} times"})
         stdscr.addstr(" " * (i - 1),
-                      curses.color_pair(self._config["calendar_color"]))
+                      self._curses.color_pair(self._config["calendar_color"]))
 
     def _add_task(self, date: str, task_desc: str) -> None:
         try:
@@ -287,6 +292,7 @@ class CliCalender():
             datetime.strptime(date, "%Y-%m-%d %H:%M")
         except ValueError as e:
             logger.error(f"Got error deleting date: {e}")
+            raise SystemExit(2)
         rowcount = self._repo.delete_task(date + ":00")
         if rowcount == 0:
             logger.info(f"No task found for date {date} to delete.")
@@ -332,10 +338,9 @@ class CliCalender():
             self._date = self._date.replace(year=args.year)
             self._month_calender = self._gen_current_month(args.year, mon)
         if args.month:
-            mon = self._date.month
-            year = self._date.year
             self._date = self._date.replace(month=months_to_nums[args.month])
-            self._month_calender = self._gen_current_month(year, mon)
+            self._month_calender = self._gen_current_month(self._date.year,
+                                                           self._date.month)
         if args.day:
             mon = self._date.month
             year = self._date.year
@@ -344,15 +349,15 @@ class CliCalender():
             if args.day > last_day:
                 logger.error(f"Invalid day {args.day!r} for month"
                              f" {nums_to_months[mon]}")
-                curses.endwin()
+                self._curses.endwin()
                 raise SystemExit(2)
             self._date = self._date.replace(day=args.day)
         if args.command:
             if args.command == "task":
                 self._handle_task(args)
-                curses.endwin()
+                self._curses.endwin()
                 raise SystemExit(0)
             elif args.command == "config":
                 self._save_user_config(args)
-                curses.endwin()
+                self._curses.endwin()
                 raise SystemExit(0)

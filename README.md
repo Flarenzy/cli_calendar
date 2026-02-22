@@ -1,6 +1,24 @@
 # CLI Calender
+[![Tests](https://github.com/Flarenzy/cli_calendar/actions/workflows/tests.yml/badge.svg)](https://github.com/Flarenzy/cli_calendar/actions/workflows/tests.yml)
+[![Coverage](https://img.shields.io/badge/dynamic/json?url=https://raw.githubusercontent.com/Flarenzy/cli_calendar/gh-pages/coverage/coverage.json&query=$.totals.percent_covered_display&label=coverage&suffix=%)](https://github.com/Flarenzy/cli_calendar/blob/gh-pages/coverage/coverage.json)
+
 This is a fun project I am doing to learn a bit about the curses library, play around with sqlite3 and see how hard it is to actually make something. When running any of the commands an curses window is opened and can be exited with either `CTRL + C` or `CTRL + Z`. Moving around in the calender is done with the standard ARROW UP, DOWN, LEFT and RIGHT keys. Going from the current to text mounth is done by pressing `CTRL + N` and moving to the previous month is done by pressing `CTRL + P`. 
 Moving to an new date the saved tasks for that date  will be displayed on the right side of the window.
+
+## Quality Status
+- Test status: pass/fail is shown by the `Tests` badge above.
+- Coverage: exported after each push to `main` as JSON on `gh-pages`:
+  - `gh-pages/coverage/coverage.json`
+  - Badge reads from that JSON file.
+
+## Running Tests
+Use `uv` as the canonical workflow:
+
+```bash
+uv sync --dev
+uv run pytest
+uv run pytest --cov=src --cov-branch --cov-report=term-missing --cov-report=json:coverage.json
+```
 
 ## Warning!
 This is very much an work in progress so things might break!
