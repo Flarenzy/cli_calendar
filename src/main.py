@@ -3,6 +3,8 @@ import logging
 import os
 from _curses import window
 from argparse import Namespace
+from typing import Any
+from typing import Callable
 
 from ArgParser import get_args
 from CliCalendar import CliCalender
@@ -38,9 +40,10 @@ def main(stdscr: window, args: Namespace) -> int:
         cal.move(stdscr)
 
 
-def main_entry() -> int:
-    args = get_args()
-    curses.wrapper(main, args)
+def main_entry(argv: list[str] | None = None,
+               wrapper: Callable[[Callable[..., Any], Namespace], Any] = curses.wrapper) -> int:
+    args = get_args(argv)
+    wrapper(main, args)
     return 0
 
 

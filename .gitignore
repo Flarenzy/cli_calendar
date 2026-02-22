@@ -4,3 +4,4 @@ test/
 *.pyc
 *.db
 *.egg-info
+.idea
